@@ -29,6 +29,10 @@ from requests.exceptions import RequestException
 
 from politifact_pkg import PolitiFactCheck
 
+#### IMPORTANT!!! ####
+# Set to some number that is higher than the number of pages of fact checks
+MAX_PAGE = 800
+
 # Politifact URLS
 POLITIFACT_BASE_URL = "https://www.politifact.com"
 FC_LIST_URL = f"{POLITIFACT_BASE_URL}/factchecks/?page="
@@ -40,7 +44,7 @@ FC_PARQUET = os.path.join(DATA_DIR, "factchecks.parquet")
 MISSED_LINKS = os.path.join(DATA_DIR, "missed_factcheck_links.txt")
 
 
-def fetch_url(url, max_retries=5, retry_delay=2):
+def fetch_url(url, max_retries=7, retry_delay=2):
     """
     Fetches data for a provided web URL.
 
@@ -88,6 +92,66 @@ def fetch_url(url, max_retries=5, retry_delay=2):
             else:
                 print("Max retries reached. Failed to fetch the webpage.")
                 return None
+
+
+def find_no_results(soup):
+    """
+    Check if a politifact page has no results.
+
+    Parameters:
+    ----------
+    - soup (BeautifulSoup): HTML content of the webpage.
+
+    Returns:
+    ----------
+    - bool: True if the page has no results, False otherwise.
+    """
+    # Find the <h2> element with the specified class.
+    h2_element = soup.find("h2", class_="c-title c-title--subline")
+
+    # Check if the element exists and contains the expected text.
+    if h2_element and "No Results found" in h2_element.get_text():
+        return True
+    else:
+        return False
+
+
+def find_max_page(base_url, max_page):
+    """
+    Find the maximum page number for the politifact base URL.
+
+    Parameters:
+    ----------
+    - base_url (str): The base URL used to construct the politifact URLs.
+    - max_page (int): The maximum page number to search.
+
+    Returns:
+    ----------
+    - int: The maximum page number with politifact results.
+
+    """
+    no_results = True
+
+    while no_results and max_page > 0:
+        # Decrement max_page by 1
+        max_page -= 1
+
+        # Sleep for a bit to be nice to politifact
+        time.sleep(0.3 + random.random())
+
+        # Construct the URL
+        url = f"{base_url}{max_page}"
+
+        # Fetch the page
+        print(f"Trying: {url}")
+        response = fetch_url(url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Once this returns False, we have found results, and should take
+        # this as our maximum page.
+        no_results = find_no_results(soup)
+
+    return max_page
 
 
 def extract_statement_links(response):
@@ -144,11 +208,15 @@ if __name__ == "__main__":
                 fact_checks.append(fc_dict)
                 page_num = max(page_num, fc_dict["page"])
 
-    print(f"Found {len(fact_checks)} fact checks.")
+    print(f"\t- Found {len(fact_checks)} fact checks.")
+
+    print("Finding the maximum page number...")
+    max_page = find_max_page(base_url=FC_LIST_URL, max_page=MAX_PAGE)
+    print(f"\t- Found max page: {max_page}")
 
     print("Begin scraping new fact checks...")
-    while True:
-        with open(FC_CACHE, "a") as f:
+    with open(FC_CACHE, "a") as f:
+        for page_num in range(1, max_page + 1):
             print(f"Fetching page {page_num}...")
             page_url = f"{FC_LIST_URL}{page_num}"
 
@@ -167,7 +235,7 @@ if __name__ == "__main__":
 
             for idx, link in enumerate(statement_links, start=1):
                 full_url = f"{POLITIFACT_BASE_URL}{link}"
-                time.sleep(1 + random.random())
+                time.sleep(0.5 + random.random())
 
                 try:
                     print(f"\t- {idx}. Fetching {full_url}")
@@ -193,15 +261,12 @@ if __name__ == "__main__":
                     if not key.startswith("_")
                 }
 
-                # May be useful if the script is broken
                 fc_dict["page"] = page_num
 
                 # Store the fact checks in a .json file incase the script is broken
                 f.write(f"{json.dumps(fc_dict)}\n")
 
                 fact_checks.append(fc_dict)
-
-            page_num += 1
 
     fc_df = pd.DataFrame.from_records(fact_checks)
 

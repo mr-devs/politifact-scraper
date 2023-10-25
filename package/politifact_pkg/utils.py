@@ -54,8 +54,9 @@ def fetch_url(url, max_retries=7, retry_delay=2):
                 print(f"Attempt {attempt + 1} failed with an unknown error: {e}")
 
             if attempt < max_retries - 1:
-                print(f"Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay * attempt)
+                wait_time = retry_delay * attempt
+                print(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
             else:
                 print("Max retries reached. Failed to fetch the webpage.")
                 return None

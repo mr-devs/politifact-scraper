@@ -1,18 +1,18 @@
 """
 Purpose: Scrape all of the fact checks on the PolitiFact website.
 
-Input: None
+Input: None. Paths/files are hardcoded.
 
 Output: .parquet file with the below columns:
-- verdict: The fact-checking verdict.
-    - Options: 'true', 'mostly-true', 'half-true', 'mostly-false', 'false', 'pants-on-fire'
-- statement: The statement.
-- statement_originator: The statement originator.
-- statement_date: The date the statement was made.
-- factchecker_name: The name of the fact checker.
-- factcheck_date: The date of the fact check.
-- topics: The topics of the fact check.
-- factcheck_analysis_link: The URL of the fact check.
+    - verdict: The fact-checking verdict.
+        - Options: 'true', 'mostly-true', 'half-true', 'mostly-false', 'false', 'pants-on-fire'
+    - statement: The statement.
+    - statement_originator: The statement originator.
+    - statement_date: The date the statement was made.
+    - factchecker_name: The name of the fact checker.
+    - factcheck_date: The date of the fact check.
+    - topics: The topics of the fact check.
+    - factcheck_analysis_link: The URL of the fact check.
 
 Author: Matthew DeVerna
 """
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
             for idx, link in enumerate(statement_links, start=1):
                 full_url = f"{POLITIFACT_BASE_URL}{link}"
-                time.sleep(0.5 + random.random())
+                time.sleep(0.5 + random.random())  # Be nice.
 
                 try:
                     print(f"\t- {idx}. Fetching {full_url}")
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 fc_dict["page"] = page_num
 
                 # Store the fact checks in a .json file incase the script is broken
-                f.write(f"{json.dumps(fc_dict)}\n")
+                f.write(json.dumps(fc_dict) + "\n")
 
                 fact_checks.append(fc_dict)
 

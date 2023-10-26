@@ -42,7 +42,7 @@ if __name__ == "__main__":
         for link in all_links:
             print(f"\t- {link}")
             try:
-                time.sleep(0.5 + random.random())
+                time.sleep(0.5 + random.random())  # Be nice.
                 response = fetch_url(link)
                 fc = PolitiFactCheck(response=response, link=link)
                 fc_dict = {

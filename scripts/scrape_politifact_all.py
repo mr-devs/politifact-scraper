@@ -42,6 +42,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Output paths
 DATA_DIR = "../data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
 FC_CACHE = os.path.join(DATA_DIR, "factchecks_cache.jsonl")
 FC_PARQUET = os.path.join(
     DATA_DIR, f"{dt.datetime.now().strftime('%Y-%m-%d')}_factchecks.parquet"

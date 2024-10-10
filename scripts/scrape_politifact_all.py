@@ -16,11 +16,13 @@ Output: .parquet file with the below columns:
 
 Author: Matthew DeVerna
 """
+
 import json
 import os
 import random
 import time
 
+import datetime as dt
 import pandas as pd
 
 from politifact_pkg import PolitiFactCheck
@@ -29,16 +31,21 @@ from politifact_pkg.parsing import extract_statement_links
 
 #### IMPORTANT!!! ####
 # Set to some number that is higher than the number of pages of fact checks
-MAX_PAGE = 800
+MAX_PAGE = 850
 
 # Politifact URLS
 POLITIFACT_BASE_URL = "https://www.politifact.com"
 FC_LIST_URL = f"{POLITIFACT_BASE_URL}/factchecks/?page="
 
+# Ensure the script runs from the the current directory
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 # Output paths
 DATA_DIR = "../data"
-FC_CACHE = os.path.join(DATA_DIR, "factchecks_cache.json")
-FC_PARQUET = os.path.join(DATA_DIR, "factchecks.parquet")
+FC_CACHE = os.path.join(DATA_DIR, "factchecks_cache.jsonl")
+FC_PARQUET = os.path.join(
+    DATA_DIR, f"{dt.datetime.now().strftime('%Y-%m-%d')}_factchecks.parquet"
+)
 MISSED_LINKS = os.path.join(DATA_DIR, "missed_factcheck_links.txt")
 
 
@@ -51,11 +58,18 @@ if __name__ == "__main__":
         print("Loading cached fact checks...")
         with open(FC_CACHE, "r") as f:
             for line in f:
-                fc_dict = json.loads(line)
-                fact_checks.append(fc_dict)
-                page_num = max(page_num, fc_dict["page"])
+                line = line.strip()
+                if line:
+                    try:
+                        fc_dict = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        print(f"Problematic line: {line}")
+                        raise e
+                    fact_checks.append(fc_dict)
 
-    print(f"\t- Found {len(fact_checks)} fact checks.")
+    collected_links = set([fc["factcheck_analysis_link"] for fc in fact_checks])
+
+    print(f"\t- Found {len(fact_checks)} fact checks already collected.")
 
     print("Finding the maximum page number...")
     max_page = find_max_page(base_url=FC_LIST_URL, max_page=MAX_PAGE)
@@ -82,6 +96,11 @@ if __name__ == "__main__":
 
             for idx, link in enumerate(statement_links, start=1):
                 full_url = f"{POLITIFACT_BASE_URL}{link}"
+
+                if full_url in collected_links:
+                    print(f"\t- {idx}. Already collected. Skipping.")
+                    continue
+
                 time.sleep(0.5 + random.random())  # Be nice.
 
                 try:
